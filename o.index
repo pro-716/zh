@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RESPAWN | Luxury Menu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { darkBg: '#0B0C10', darkCard: '#12141C', neonCyan: '#66fcf1', hyperViolet: '#bc13fe' },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0B0C10; color: #fff; overflow-x: hidden; }
+        .mesh-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: radial-gradient(circle at 10% 20%, rgba(102, 252, 241, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 90% 80%, rgba(188, 19, 254, 0.1) 0%, transparent 50%);
+            filter: blur(100px); animation: meshMove 20s ease-in-out infinite alternate;
+        }
+        @keyframes meshMove { from { transform: scale(1); } to { transform: scale(1.2); } }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .category-btn.active { background: #66fcf1; color: #0B0C10; box-shadow: 0 0 25px rgba(102, 252, 241, 0.5); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .product-card { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .product-card:active { transform: scale(0.9); }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="mesh-bg"></div>
+
+    <header class="pt-16 pb-10 text-center px-4 relative">
+        <div class="animate__animated animate__fadeInDown">
+            <h1 class="text-7xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl">
+                RESPAWN<span class="text-neonCyan">.</span>
+            </h1>
+            <div class="h-1.5 w-20 bg-neonCyan mx-auto rounded-full mb-6 shadow-[0_0_15px_#66fcf1]"></div>
+            <p class="text-gray-400 text-sm font-light tracking-[0.2em] uppercase opacity-80">Ultimate Gaming Experience</p>
+        </div>
+    </header>
+
+    <nav class="sticky top-6 z-40 px-4 mb-12">
+        <div class="flex gap-4 overflow-x-auto no-scrollbar max-w-md mx-auto p-2 glass rounded-full" id="category-nav"></div>
+    </nav>
+
+    <main class="px-4 max-w-md mx-auto mb-32">
+        <div id="menu-grid" class="grid grid-cols-1 gap-5"></div>
+    </main>
+
+    <div id="cart-bar" class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] max-w-md glass rounded-full p-3 px-8 flex justify-between items-center z-50 opacity-0 pointer-events-none transition-all duration-700 translate-y-12 shadow-2xl">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-neonCyan text-darkBg rounded-full flex items-center justify-center font-black text-sm" id="cart-count">0</div>
+            <span class="text-sm font-bold tracking-wide">السلة المحدثة</span>
+        </div>
+        <button onclick="openCart()" class="bg-white text-black px-8 py-2 rounded-full font-black text-xs uppercase transition-all active:scale-90 hover:bg-neonCyan">إتمام الطلب</button>
+    </div>
+
+    <div id="cart-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-2xl" onclick="closeCart()"></div>
+        <div class="absolute bottom-0 left-0 right-0 bg-darkCard rounded-t-[3rem] p-8 animate__animated animate__slideInUp max-w-md mx-auto border-t border-white/10 shadow-2xl">
+            <div class="w-12 h-1.5 bg-gray-800 rounded-full mx-auto mb-10"></div>
+            <h3 class="text-3xl font-black mb-8 text-center tracking-tight">فاتورة <span class="text-neonCyan">الطلب</span></h3>
+            <div id="cart-items" class="space-y-4 max-h-80 overflow-y-auto no-scrollbar mb-8"></div>
+            <div class="flex justify-between items-center p-5 bg-white/5 rounded-3xl mb-8 border border-white/5">
+                <span class="text-gray-400 font-bold">المجموع الكلي</span>
+                <span class="text-3xl font-black text-neonCyan" id="total-price">0 د.ع</span>
+            </div>
+            <div class="space-y-4">
+                <select id="cust-table" class="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-neonCyan transition-all text-sm appearance-none">
+                    <option value="">🎯 اختر مكان الجلوس</option>
+                </select>
+                <textarea id="cust-note" placeholder="ملاحظات إضافية..." class="w-full bg-black border border-white/10 p-4 rounded-2xl outline-none focus:border-neonCyan transition-all text-sm h-24"></textarea>
+                <button id="submit-btn" onclick="sendToTelegram()" class="w-full bg-neonCyan text-black py-5 rounded-2xl font-black text-lg shadow-[0_0_30px_rgba(102,252,241,0.4)] active:scale-95 transition-all">إرسال الطلب 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFQx3BndP3piYkONM0KSBcb5vo8xx3a5Q",
+            authDomain: "respawn-7654a.firebaseapp.com",
+            projectId: "respawn-7654a",
+            storageBucket: "respawn-7654a.firebasestorage.app",
+            messagingSenderId: "503079760523",
+            appId: "1:503079760523:web:002bb6364abd211f5a9a8e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const BOT_TOKEN = "8804335988:AAF3JE7YLRqcjJeFCGQLFoZ1f_pyWrIXDfs";
+        const CHAT_ID = "5044044978";
+
+        const MENU_DATA = {
+            "ازبري": [ { id: 1, name: "ازبري توت", price: 1000 }, { id: 2, name: "ازبري برتقال", price: 2000 } ],
+            "ساخن وتسالي": [ { id: 3, name: "كابتشينو", price: 1000 }, { id: 4, name: "شاي مهيل", price: 500 }, { id: 5, name: "إندومي", price: 1000 } ],
+            "عصائر طبيعية": [ { id: 6, name: "كوكتيل ريسبون الخاص", price: 1500 }, { id: 7, name: "عصير موز", price: 1000 }, { id: 8, name: "عصير برتقال", price: 1000 }, { id: 9, name: "عصير ليمون", price: 1000 }, { id: 10, name: "عصير خوخ فريش", price: 1000 }, { id: 11, name: "عصير بطيخ", price: 1000 } ],
+            "مشروبات باردة": [ { id: 12, name: "تايكر طاقة", price: 1250 }, { id: 13, name: "كازوز علج", price: 500 }, { id: 14, name: "ببسي", price: 500 }, { id: 15, name: "ماونتن ديو", price: 500 }, { id: 16, name: "سفن اب", price: 500 }, { id: 17, name: "ميرندا", price: 500 }, { id: 18, name: "ماء بارد", price: 250 } ],
+            "أراكيل ريسبون": [ { id: 19, name: "أركيلة علج نعناع", price: 2500 }, { id: 20, name: "أركيلة إنكليزي", price: 2500 }, { id: 21, name: "أركيلة تفاحتين", price: 2500 }, { id: 22, name: "أركيلة ليمون نعناع", price: 2500 }, { id: 23, name: "أركيلة نعناع", price: 2500 }, { id: 24, name: "خلطة Boss Fight", price: 3000 }, { id: 25, name: "خلطة Killstreak", price: 3000 }, { id: 26, name: "خلطة Loot Box", price: 3000 }, { id: 27, name: "خلطة Overclock", price: 3000 } ],
+            "عروض ريسبون": [ { id: 28, name: "اركيلة 2 + كيم بلي مجاني", price: 5000 }, { id: 29, name: "ساعة بلايستيشن + 2 شاي مجاني", price: 4000 }, { id: 30, name: "ساعة منضدة + 2 شاي مجاني", price: 4000 }, { id: 31, name: "5 كيم بلايستيشن + السادس مجاني", price: 5000 }, { id: 32, name: "5 كيم بلايستيشن + عصير مجاني", price: 5000 } ],
+            "صالة الألعاب": [ { id: 33, name: "بلايستيشن 5 - ساعة", price: 4000, duration: 3600 }, { id: 34, name: "بلايستيشن 5 - نصف ساعة", price: 2000, duration: 1800 }, { id: 35, name: "كيم بلايستيشن 5 - زوجي", price: 1000 }, { id: 36, name: "كيم بلايستيشن 5 - رباعي", price: 2000 }, { id: 37, name: "منضدة تنس - ساعة", price: 4000, duration: 3600 }, { id: 38, name: "منضدة تنس - نصف ساعة", price: 2000, duration: 1800 }, { id: 39, name: "كيم منضدة تنس - زوجي", price: 500 }, { id: 40, name: "كيم منضدة تنس - رباعي", price: 1000 } ]
+        };
+
+        let cart = [];
+        let currentCat = "ازبري";
+
+        async function loadTables() {
+            const select = document.getElementById('cust-table');
+            const baseTables = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
+            let allTables = [...baseTables];
+            try {
+                const snap = await getDocs(collection(db, "tables"));
+                snap.forEach(doc => {
+                    const name = doc.data().name;
+                    if(!allTables.includes(name)) allTables.push(name);
+                });
+            } catch(e) { console.error(e); }
+            select.innerHTML = '<option value="">🎯 اختر مكان الجلوس</option>';
+            allTables.forEach(t => select.innerHTML += `<option value="${t}">${t}</option>`);
+        }
+
+        function init() {
+            const nav = document.getElementById('category-nav');
+            Object.keys(MENU_DATA).forEach((cat, i) => {
+                const btn = document.createElement('button');
+                btn.className = `category-btn whitespace-nowrap px-6 py-2 rounded-full text-xs font-bold transition-all ${i===0?'active':'bg-white/5 text-gray-400'}`;
+                btn.innerText = cat;
+                btn.onclick = (e) => {
+                    document.querySelectorAll('.category-btn').forEach(b => { b.classList.remove('active'); b.classList.add('bg-white/5', 'text-gray-400'); });
+                    e.target.classList.add('active');
+                    currentCat = cat;
+                    render();
+                };
+                nav.appendChild(btn);
+            });
+            render();
+            loadTables();
+        }
+
+        function render() {
+            const grid = document.getElementById('menu-grid');
+            grid.innerHTML = '';
+            MENU_DATA[currentCat].forEach((item, i) => {
+                const card = document.createElement('div');
+                card.className = `product-card glass p-5 rounded-3xl flex justify-between items-center animate__animated animate__fadeInUp`;
+                card.style.animationDelay = `${i * 0.05}s`;
+                card.innerHTML = `
+                    <div><div class="font-bold text-gray-100">${item.name}</div><div class="text-neonCyan font-mono text-sm">${item.price.toLocaleString()} د.ع</div></div>
+                    <button onclick="addToCart(${item.id}, '${item.name}', ${item.price}, ${item.duration || 0})" class="bg-white text-black w-9 h-9 rounded-xl flex items-center justify-center font-black transition-all active:scale-75">+</button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        window.addToCart = (id, name, price, duration) => {
+            const exist = cart.find(i => i.id === id);
+            if(exist) exist.qty++; else cart.push({id, name, price, qty:1, duration});
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const count = cart.reduce((s, i) => s + i.qty, 0);
+            const bar = document.getElementById('cart-bar');
+            document.getElementById('cart-count').innerText = count;
+            count > 0 ? bar.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-12') : bar.classList.add('opacity-0', 'pointer-events-none', 'translate-y-12');
+        }
+
+        window.openCart = () => { document.getElementById('cart-modal').classList.remove('hidden'); renderInvoice(); }
+        window.closeCart = () => { document.getElementById('cart-modal').classList.add('hidden'); }
+
+        function renderInvoice() {
+            const list = document.getElementById('cart-items');
+            list.innerHTML = '';
+            let total = 0;
+            cart.forEach(item => {
+                total += item.price * item.qty;
+                list.innerHTML += `<div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl">
+                    <div class="flex items-center gap-2 bg-black rounded-lg p-1">
+                        <button onclick="changeQty(${item.id}, -1)" class="w-6 h-6 bg-gray-800 rounded">-</button>
+                        <span class="text-xs font-bold w-4 text-center">${item.qty}</span>
+                        <button onclick="changeQty(${item.id}, 1)" class="w-6 h-6 bg-neonCyan text-black rounded">+</button>
+                    </div>
+                    <span class="font-bold text-sm">${item.name}</span>
+                    <span class="text-neonCyan font-mono text-sm">${(item.price * item.qty).toLocaleString()} د.ع</span>
+                </div>`;
+            });
+            document.getElementById('total-price').innerText = `${total.toLocaleString()} د.ع`;
+        }
+
+        window.changeQty = (id, delta) => {
+            const item = cart.find(i => i.id === id);
+            if(item) {
+                item.qty += delta;
+                if(item.qty <= 0) cart = cart.filter(i => i.id !== id);
+            }
+            renderInvoice(); updateCartUI();
+        }
+
+        window.sendToTelegram = async () => {
+            const table = document.getElementById('cust-table').value;
+            const note = document.getElementById('cust-note').value;
+            const btn = document.getElementById('submit-btn');
+            if(!table) return alert("يرجى اختيار الطاولة 🎯");
+            if(cart.length === 0) return alert("السلة فارغة 🛒");
+
+            btn.disabled = true;
+            btn.innerText = "جاري الإرسال...";
+
+            let total = 0; let itemsDetails = "";
+            let timedItem = null;
+            cart.forEach(i => { total += i.price * i.qty; itemsDetails += `\n▫️ ${i.name} (x${i.qty}) ⮕ ${(i.price * i.qty).toLocaleString()} د.ع`; if(i.duration > 0) timedItem = i; });
+
+            const invoiceMsg = `🚀 *طلب جديد - RESPAWN*\n━━━━━━━━━━━━━━\n📍 *المكان:* ${table}\n📦 *الطلبات:*${itemsDetails}\n━━━━━━━━━━━━━━\n💰 *المجموع:* ${total.toLocaleString()} د.ع\n📝 *ملاحظة:* ${note || 'لا يوجد'}\n⏰ *الوقت:* ${new Date().toLocaleTimeString('ar-IQ')}\n━━━━━━━━━━━━━━`;
+            
+            try {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ chat_id: CHAT_ID, text: invoiceMsg, parse_mode: 'Markdown' })
+                });
+                
+                await addDoc(collection(db, "orders"), {
+                    table: table, items: cart, total: total, status: "open", timestamp: Date.now(),
+                    startTime: Date.now(), duration: timedItem ? timedItem.duration : 0
+                });
+                
+                alert("تم إرسال طلبك بنجاح! ✅");
+                cart = []; updateCartUI(); closeCart();
+                document.getElementById('cust-table').value = '';
+                document.getElementById('cust-note').value = '';
+            } catch (e) { alert("حدث خطأ في الإرسال ❌"); } finally {
+                btn.disabled = false;
+                btn.innerText = "إرسال الطلب للتليجرام 🚀";
+            }
+        }
+        window.onload = init;
+    </script>
+</body>
+</html>
