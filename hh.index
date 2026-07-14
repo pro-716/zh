@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RESPAWN | Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght=400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { darkBg: '#050505', darkCard: '#0f0f0f', neonCyan: '#66fcf1', neonRed: '#ff4d4d', hyperViolet: '#bc13fe' },
+                    fontFamily: { cairo: ['Cairo', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #050505; color: #fff; overflow-x: hidden; }
+        .glass-panel { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .table-card { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .table-open { 
+            border-right: 6px solid #66fcf1; 
+            background: linear-gradient(90deg, rgba(102, 252, 241, 0.1) 0%, rgba(15, 15, 15, 0.8) 100%);
+            animation: pulse-cyan 2s infinite;
+        }
+        .table-empty { border-right: 6px solid #374151; background: rgba(20, 20, 20, 0.6); }
+        .revenue-card { background: linear-gradient(135deg, #66fcf1 0%, #45a29e 100%); box-shadow: 0 0 30px rgba(102, 252, 241, 0.3); }
+        @keyframes pulse-cyan {
+            0% { box-shadow: 0 0 0 0 rgba(102, 252, 241, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(102, 252, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(102, 252, 241, 0); }
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* Drawer animation */
+        .drawer-closed { transform: translateX(100%); }
+        .drawer-open { transform: translateX(0); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden bg-darkBg">
+
+    <!-- Navigation Drawer (القائمة الجانبية المستدعاة بالـ 3 خطوط) -->
+    <div id="nav-drawer" class="fixed inset-y-0 right-0 w-72 glass-panel z-[300] p-6 flex flex-col gap-6 drawer-closed transition-transform duration-300 ease-in-out">
+        <div class="flex justify-between items-center pb-4 border-b border-white/10">
+            <span class="font-black text-lg text-neonCyan tracking-wider">اقسام النظام</span>
+            <button onclick="toggleDrawer()" class="text-gray-400 hover:text-white text-xl p-2">✕</button>
+        </div>
+        <nav class="flex flex-col gap-3">
+            <button onclick="switchTab('map')" id="btn-map-tab" class="flex items-center gap-4 p-4 rounded-2xl bg-white/10 text-neonCyan border-r-4 border-neonCyan font-bold text-sm transition-all">
+                🎯 خريطة الصالة والطاولات
+            </button>
+            <button onclick="switchTab('stats')" id="btn-stats-tab" class="flex items-center gap-4 p-4 rounded-2xl text-gray-400 hover:bg-white/5 hover:text-white font-bold text-sm transition-all">
+                📊 جرد وفرز مبيعات المواد
+            </button>
+            <button onclick="switchTab('log')" id="btn-log-tab" class="flex items-center gap-4 p-4 rounded-2xl text-gray-400 hover:bg-white/5 hover:text-white font-bold text-sm transition-all">
+                📋 سجل الفواتير المكتملة
+            </button>
+        </nav>
+        <div class="mt-auto pt-4 border-t border-white/10 text-center text-[10px] text-gray-500 font-mono">
+            RESPAWN HQ v2.5
+        </div>
+    </div>
+    <div id="drawer-overlay" onclick="toggleDrawer()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] hidden"></div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 h-full overflow-y-auto p-6 lg:p-10 bg-[radial-gradient(circle_at_top_right,_#111_0%,_#050505_100%)] no-scrollbar w-full">
+        
+        <!-- Header Controls -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+            <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+                <!-- زر الـ 3 خطوط مالتنا -->
+                <button onclick="toggleDrawer()" class="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 text-neonCyan transition-all active:scale-95 flex items-center justify-center" title="القائمة المنسدلة">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <div class="text-right">
+                    <h1 id="main-view-title" class="text-3xl font-black tracking-tighter">مركز <span class="text-neonCyan">القيادة</span></h1>
+                    <p class="text-gray-400 text-[10px] uppercase tracking-widest">RESPAWN Management System</p>
+                </div>
+            </div>
+            
+            <!-- لوحة الإيرادات اليومية -->
+            <div class="revenue-card p-5 rounded-3xl text-black flex items-center gap-6 w-full md:w-72">
+                <div class="text-3xl">💰</div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase opacity-80">إجمالي الإيرادات اليومية</p>
+                    <h2 id="daily-revenue" class="text-2xl font-black">0 د.ع</h2>
+                </div>
+            </div>
+            
+            <div class="flex gap-2 w-full md:w-auto justify-end">
+                <button onclick="addNewTable()" class="bg-neonCyan text-black px-4 py-3 rounded-2xl text-xs font-bold transition-all active:scale-95">إضافة طاولة +</button>
+                <button onclick="closeAllTables()" class="bg-neonRed text-white px-4 py-3 rounded-2xl text-xs font-bold transition-all active:scale-95 hover:bg-red-700">تصفير الصالة ❌</button>
+            </div>
+        </header>
+
+        <!-- 1. الخانة الأولى: خريطة الصالة (تظهر تلقائياً أول ما يفتح) -->
+        <div id="view-map" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate__animated animate__fadeIn"></div>
+
+        <!-- 2. الخانة الثانية: فرز وجرد المواد اليومية مستقل تماماً -->
+        <div id="view-stats" class="hidden max-w-5xl mx-auto animate__animated animate__fadeIn">
+            <div class="glass-panel rounded-3xl p-6">
+                <h2 class="text-xl font-black text-neonCyan mb-6 flex items-center gap-2">📊 جرد وفرز مبيعات المواد اليومية</h2>
+                <div id="stats-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 text-center">
+                    <div class="col-span-full text-center text-gray-500 py-4">لم يتم بيع أي مواد اليوم بعد.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. الخانة الثالثة: سجل الفواتير المكتملة مستقل تماماً -->
+        <div id="view-log" class="hidden max-w-5xl mx-auto animate__animated animate__fadeIn">
+            <div class="glass-panel rounded-3xl overflow-hidden">
+                <div class="p-5 bg-white/5 border-b border-white/10">
+                    <h2 class="text-lg font-black text-white">📋 سجل الفواتير المكتملة لليوم</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-white/10 text-neonCyan">
+                            <tr>
+                                <th class="p-4">الوقت</th>
+                                <th class="p-4">الطاولة</th>
+                                <th class="p-4">الطلبات المكتملة والمبيوعة</th>
+                                <th class="p-4">المجموع</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-body">
+                            <tr class="text-center text-gray-500"><td colspan="4" class="p-10">لا توجد طلبات مكتملة اليوم.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-xl" onclick="closeDetail()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-darkCard p-8 rounded-[2.5rem] border border-white/10 animate__animated animate__zoomIn glass-panel">
+            <div class="flex justify-between items-start mb-6">
+                <h3 id="detail-title" class="text-3xl font-black text-neonCyan">تفاصيل الطاولة</h3>
+                <button onclick="closeDetail()" class="text-gray-500 hover:text-white text-2xl">✕</button>
+            </div>
+            <div id="timer-section" class="hidden bg-black/50 p-4 rounded-2xl mb-6 border border-neonCyan/30 flex justify-between items-center">
+                <span class="text-sm font-bold">الوقت المتبقي:</span>
+                <span id="detail-timer" class="font-mono text-xl font-black text-neonCyan">00:00:00</span>
+            </div>
+            <div class="flex gap-2 mb-6">
+                <input id="add-item-name" type="text" placeholder="صنف" class="flex-1 bg-black border border-white/10 p-2 rounded-xl text-xs outline-none focus:border-neonCyan">
+                <input id="add-item-price" type="number" placeholder="سعر" class="w-20 bg-black border border-white/10 p-2 rounded-xl text-xs outline-none focus:border-neonCyan">
+                <button id="btn-add-item" class="bg-neonCyan text-black px-3 rounded-xl font-bold text-xs">+</button>
+            </div>
+            
+            <div id="detail-items" class="space-y-3 mb-8 max-h-60 overflow-y-auto no-scrollbar"></div>
+            
+            <div class="flex justify-between items-center p-4 bg-white/5 rounded-2xl mb-8">
+                <span class="font-bold text-gray-400">المجموع المتبقي:</span>
+                <span id="detail-total" class="text-2xl font-black text-neonCyan">0 د.ع</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <button id="btn-transfer" class="bg-blue-600 hover:bg-blue-700 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95">تحويل الحساب ⇄</button>
+                <button id="btn-close" class="bg-green-600 hover:bg-green-700 py-4 rounded-2xl font-bold text-sm transition-all active:scale-95">إغلاق وتأكيد الدفع ✅</button>
+            </div>
+            <button id="btn-delete-table" class="w-full mt-4 text-red-500 text-xs font-bold py-2 hover:underline hidden">حذف الطاولة نهائياً 🗑️</button>
+        </div>
+    </div>
+
+    <!-- Transfer Modal -->
+    <div id="transfer-modal" class="fixed inset-0 z-[200] hidden">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-md" onclick="closeTransfer()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xs bg-darkCard p-6 rounded-3xl border border-white/10 animate__animated animate__zoomIn">
+            <h3 class="text-xl font-black mb-4 text-center">نقل الحساب إلى...</h3>
+            <select id="transfer-target" class="w-full bg-black border border-white/10 p-4 rounded-2xl mb-6 text-sm outline-none focus:border-neonCyan appearance-none"></select>
+            <button id="confirm-transfer" class="w-full bg-neonCyan text-black py-3 rounded-xl font-bold active:scale-95 transition-all">تأكيد النقل 🔄</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs, writeBatch, setDoc, getDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFQx3BndP3piYkONM0KSBcb5vo8xx3a5Q",
+            authDomain: "respawn-7654a.firebaseapp.com",
+            projectId: "respawn-7654a",
+            storageBucket: "respawn-7654a.firebasestorage.app",
+            messagingSenderId: "503079760523",
+            appId: "1:503079760523:web:002bb6364abd211f5a9a8e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const BASE_TABLES = ["طاولة 7", "طاولة 8", "طاولة 9", "طاولة 10", "بلي 1", "بلي 2", "بلي 3", "بلي 4", "بلي 5", "بلي 6", "منضدة 11", "منضدة 12"];
+        let allTablesList = [...BASE_TABLES];
+        let timerInterval = null;
+        let currentTransferSource = null;
+
+        // فتح وإغلاق القائمة الجانبية مالت الـ 3 خطوط
+        window.toggleDrawer = () => {
+            const drawer = document.getElementById('nav-drawer');
+            const overlay = document.getElementById('drawer-overlay');
+            if(drawer.classList.contains('drawer-closed')) {
+                drawer.classList.remove('drawer-closed'); drawer.classList.add('drawer-open');
+                overlay.classList.remove('hidden');
+            } else {
+                drawer.classList.remove('drawer-open'); drawer.classList.add('drawer-closed');
+                overlay.classList.add('hidden');
+            }
+        };
+
+        // دالة التنقل بين الخانات المنفصلة وتحديث العناوين الفوقية
+        window.switchTab = (tab) => {
+            const map = document.getElementById('view-map');
+            const stats = document.getElementById('view-stats');
+            const log = document.getElementById('view-log');
+            const title = document.getElementById('main-view-title');
+            
+            const bMap = document.getElementById('btn-map-tab');
+            const bStats = document.getElementById('btn-stats-tab');
+            const bLog = document.getElementById('btn-log-tab');
+            
+            // إخفاء كل الخانات وتصفير الستستايل مال الأزرار
+            map.classList.add('hidden'); stats.classList.add('hidden'); log.classList.add('hidden');
+            [bMap, bStats, bLog].forEach(b => b.classList.remove('bg-white/10', 'text-neonCyan', 'border-r-4', 'border-neonCyan'));
+            [bMap, bStats, bLog].forEach(b => b.classList.add('text-gray-400'));
+
+            if(tab === 'map') {
+                map.classList.remove('hidden');
+                title.innerHTML = 'مركز <span class="text-neonCyan">القيادة</span>';
+                bMap.classList.add('bg-white/10', 'text-neonCyan', 'border-r-4', 'border-neonCyan');
+            } else if(tab === 'stats') {
+                stats.classList.remove('hidden');
+                title.innerHTML = 'فرز وجرد <span class="text-neonCyan">المبيعات</span>';
+                bStats.classList.add('bg-white/10', 'text-neonCyan', 'border-r-4', 'border-neonCyan');
+            } else if(tab === 'log') {
+                log.classList.remove('hidden');
+                title.innerHTML = 'سجل <span class="text-neonCyan">الفواتير</span>';
+                bLog.classList.add('bg-white/10', 'text-neonCyan', 'border-r-4', 'border-neonCyan');
+            }
+            toggleDrawer(); // غلق القائمة بعد الاختيار تلقائياً
+        };
+
+        async function updateRevenue() {
+            const statsRef = doc(db, "stats", "daily_revenue");
+            const snap = await getDoc(statsRef);
+            const total = snap.exists() ? snap.data().total : 0;
+            document.getElementById('daily-revenue').innerText = `${total.toLocaleString()} د.ع`;
+        }
+
+        // مستمع مستمر وحي لقسم الفواتير والجرد المنفصل
+        const qClosed = query(collection(db, "closed_orders"), orderBy("timestamp", "desc"));
+        onSnapshot(qClosed, (snap) => {
+            const logBody = document.getElementById('log-body');
+            const statsGrid = document.getElementById('stats-grid');
+            
+            logBody.innerHTML = '';
+            statsGrid.innerHTML = '';
+            
+            let itemsCountMap = {};
+
+            if(snap.empty) {
+                logBody.innerHTML = '<tr class="text-center text-gray-500"><td colspan="4" class="p-10">لا توجد طلبات مكتملة اليوم.</td></tr>';
+                statsGrid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-4">لم يتم بيع أي مواد اليوم بعد.</div>';
+                return;
+            }
+
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                if(!data.timestamp) return;
+                const time = new Date(data.timestamp).toLocaleTimeString('ar-IQ');
+                const itemsStr = data.items.map(i => `${i.name} (x${i.qty || 1})`).join('، ');
+                
+                logBody.innerHTML += `
+                    <tr class="border-b border-white/5 hover:bg-white/5 transition-all">
+                        <td class="p-4 text-xs">${time}</td>
+                        <td class="p-4 font-bold">${data.table}</td>
+                        <td class="p-4 text-xs text-gray-400">${itemsStr}</td>
+                        <td class="p-4 text-neonCyan font-bold">${data.total.toLocaleString()} د.ع</td>
+                    </tr>
+                `;
+
+                data.items.forEach(item => {
+                    const count = item.qty || 1;
+                    if (itemsCountMap[item.name]) {
+                        itemsCountMap[item.name].qty += count;
+                        itemsCountMap[item.name].totalPrice += (item.price * count);
+                    } else {
+                        itemsCountMap[item.name] = { qty: count, totalPrice: (item.price * count) };
+                    }
+                });
+            });
+
+            Object.keys(itemsCountMap).forEach(itemName => {
+                statsGrid.innerHTML += `
+                    <div class="bg-white/5 border border-white/10 p-4 rounded-2xl flex flex-col justify-between animate__animated animate__fadeIn">
+                        <span class="text-xs text-gray-400 font-bold block truncate text-right">${itemName}</span>
+                        <span class="text-2xl font-black text-neonCyan my-1 text-center">${itemsCountMap[itemName].qty}</span>
+                        <span class="text-[10px] text-gray-500 font-mono text-center">${itemsCountMap[itemName].totalPrice.toLocaleString()} د.ع</span>
+                    </div>
+                `;
+            });
+        });
+
+        // مستمع مستمر وحي لقسم الطاولات المفتوحة والنشطة
+        onSnapshot(collection(db, "orders"), async (snap) => {
+            const openOrders = {};
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                if (data.status === "open") {
+                    const tName = data.table;
+                    if (!openOrders[tName]) openOrders[tName] = { items: [], total: 0, customer: data.customer || 'زبون', startTime: data.startTime, duration: data.duration };
+                    
+                    data.items.forEach(item => {
+                        const qty = item.qty || 1;
+                        const exist = openOrders[tName].items.find(i => i.name === item.name && i.price === item.price);
+                        if(exist) {
+                            exist.qty += qty;
+                        } else {
+                            openOrders[tName].items.push({...item, qty: qty});
+                        }
+                    });
+                    openOrders[tName].total += data.total;
+                }
+            });
+            
+            const tableSnap = await getDocs(collection(db, "tables"));
+            const dynamic = [];
+            tableSnap.forEach(doc => dynamic.push(doc.data().name));
+            allTablesList = [...new Set([...BASE_TABLES, ...dynamic])];
+            renderMap(openOrders);
+        });
+
+        function renderMap(openOrders) {
+            const grid = document.getElementById('view-map');
+            grid.innerHTML = '';
+            allTablesList.forEach(tableName => {
+                const data = openOrders[tableName];
+                const isOpen = !!data;
+                grid.innerHTML += `
+                    <div onclick="showDetail('${tableName}')" class="table-card p-6 rounded-[2rem] cursor-pointer ${isOpen ? 'table-open' : 'table-empty'} shadow-lg glass-panel animate__animated animate__fadeIn">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xl font-black">${tableName}</h3>
+                            <span class="text-[10px] px-3 py-1 rounded-full ${isOpen ? 'bg-neonCyan text-black font-bold' : 'bg-gray-600 text-gray-300'}">
+                                ${isOpen ? 'مشغولة' : 'فارغة'}
+                            </span>
+                        </div>
+                        ${isOpen ? `<div class="mt-6 flex justify-between items-end">
+                            <span class="text-xs text-gray-400">الزبون: ${data.customer}</span>
+                            <span class="text-neonCyan font-black text-lg">${data.total.toLocaleString()} د.ع</span>
+                        </div>` : `<div class="mt-6 text-gray-600 text-xs italic">جاهزة للاستقبال</div>`}
+                    </div>
+                `;
+            });
+        }
+
+        window.addNewTable = async () => {
+            const name = prompt("أدخل اسم الطاولة الجديدة:");
+            if(!name) return;
+            await addDoc(collection(db, "tables"), { name: name });
+        };
+
+        window.showDetail = async (tableName) => {
+            const q = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const snap = await getDocs(q);
+            if(snap.empty) return alert("هذه الطاولة فارغة ولا توجد طلبات مفتوحة عليها حالياً!");
+
+            let items = []; let total = 0;
+            let startTime = null; let duration = 0;
+            snap.forEach(d => {
+                const data = d.data();
+                data.items.forEach(item => {
+                    const qty = item.qty || 1;
+                    const exist = items.find(i => i.name === item.name && i.price === item.price);
+                    if(exist) exist.qty += qty; else items.push({...item, qty: qty});
+                });
+                total += data.total;
+                if(data.startTime) startTime = data.startTime;
+                if(data.duration) duration = data.duration;
+            });
+
+            document.getElementById('detail-title').innerText = tableName;
+            document.getElementById('detail-total').innerText = `${total.toLocaleString()} د.ع`;
+            const itemsDiv = document.getElementById('detail-items');
+            itemsDiv.innerHTML = '';
+            
+            items.forEach((item) => {
+                itemsDiv.innerHTML += `
+                    <div class="flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/5">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-bold text-white">${item.name} <span class="text-neonCyan">x${item.qty}</span></span>
+                            <span class="text-xs text-gray-400 font-mono">${(item.price * item.qty).toLocaleString()} د.ع</span>
+                        </div>
+                        <div class="flex justify-between items-center gap-2 pt-2 border-t border-white/5">
+                            <button onclick="earlyPayment('${tableName}', '${item.name}', ${item.price}, ${item.qty})" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] px-2 py-1 rounded-md font-bold transition-all">💵 دفع مبكر</button>
+                            <button onclick="deleteItem('${tableName}', '${item.name}', ${item.price})" class="text-red-500 hover:text-red-400 p-1 text-xs">حذف كلي ✕</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            const timerSection = document.getElementById('timer-section');
+            if(duration > 0 && startTime) {
+                timerSection.classList.remove('hidden');
+                startAdminTimer(startTime, duration);
+            } else {
+                timerSection.classList.add('hidden');
+                clearInterval(timerInterval);
+            }
+
+            const delBtn = document.getElementById('btn-delete-table');
+            if(BASE_TABLES.includes(tableName)) {
+                delBtn.classList.add('hidden');
+            } else {
+                delBtn.classList.remove('hidden');
+                delBtn.onclick = () => deleteTablePermanently(tableName);
+            }
+
+            document.getElementById('btn-close').onclick = () => closeTable(tableName);
+            document.getElementById('btn-transfer').onclick = () => openTransferModal(tableName);
+            document.getElementById('btn-add-item').onclick = () => addItemToTable(tableName);
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        window.earlyPayment = async (tableName, itemName, itemPrice, currentQty) => {
+            const countStr = prompt(`كمية [ ${itemName} ] المراد دفع حسابها مبكراً؟ (المتوفر حالياً: ${currentQty})`, "1");
+            if(!countStr) return;
+            const payQty = parseInt(countStr);
+            if(isNaN(payQty) || payQty <= 0 || payQty > currentQty) return alert("الكمية المدخلة غير صحيحة!");
+
+            const q = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const snap = await getDocs(q);
+            
+            let qtyPaidAndRemoved = 0;
+            const batch = writeBatch(db);
+
+            for (const d of snap.docs) {
+                if (qtyPaidAndRemoved >= payQty) break;
+                const data = d.data();
+                let docUpdated = false;
+                let newItems = [];
+                let docTotalReduction = 0;
+
+                data.items.forEach(item => {
+                    if (item.name === itemName && item.price === itemPrice && qtyPaidAndRemoved < payQty) {
+                        const itemQty = item.qty || 1;
+                        const needed = payQty - qtyPaidAndRemoved;
+                        if (itemQty <= needed) {
+                            qtyPaidAndRemoved += itemQty;
+                            docTotalReduction += (item.price * itemQty);
+                            docUpdated = true;
+                        } else {
+                            const remaining = itemQty - needed;
+                            qtyPaidAndRemoved += needed;
+                            docTotalReduction += (item.price * needed);
+                            newItems.push({ ...item, qty: remaining });
+                            docUpdated = true;
+                        }
+                    } else {
+                        newItems.push(item);
+                    }
+                });
+
+                if (docUpdated) {
+                    const finalTotal = data.total - docTotalReduction;
+                    if(newItems.length === 0 && finalTotal <= 0) {
+                        batch.delete(doc(db, "orders", d.id));
+                    } else {
+                        batch.update(doc(db, "orders", d.id), { items: newItems, total: finalTotal });
+                    }
+                }
+            }
+
+            const amountPaid = itemPrice * payQty;
+            const statsRef = doc(db, "stats", "daily_revenue");
+            const statsSnap = await getDoc(statsRef);
+            const currentRev = statsSnap.exists() ? statsSnap.data().total : 0;
+            batch.set(statsRef, { total: currentRev + amountPaid });
+
+            const historyRef = doc(collection(db, "closed_orders"));
+            batch.set(historyRef, {
+                table: tableName,
+                items: [{ name: `${itemName} (دفع مبكر)`, price: itemPrice, qty: payQty }],
+                total: amountPaid,
+                timestamp: Date.now()
+            });
+
+            await batch.commit();
+            updateRevenue();
+            alert(`تم دفع حساب ${payQty} ${itemName} مبكراً بقيمة ${amountPaid.toLocaleString()} د.ع بنجاح! ✅`);
+            
+            const checkQ = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const checkSnap = await getDocs(checkQ);
+            if(checkSnap.empty) closeDetail(); else showDetail(tableName);
+        }
+
+        function startAdminTimer(startTime, duration) {
+            clearInterval(timerInterval);
+            const endTime = startTime + (duration * 1000);
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const diff = endTime - now;
+                if (diff <= 0) {
+                    document.getElementById('detail-timer').innerText = "00:00:00";
+                    clearInterval(timerInterval);
+                    return;
+                }
+                const h = Math.floor(diff / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                document.getElementById('detail-timer').innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            }, 1000);
+        }
+
+        window.addItemToTable = async (tableName) => {
+            const name = document.getElementById('add-item-name').value;
+            const price = parseInt(document.getElementById('add-item-price').value);
+            if(!name || !price) return alert("أدخل الاسم والسعر!");
+            const q = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            
+            if(snap.empty) {
+                const orderRef = doc(collection(db, "orders"));
+                batch.set(orderRef, {
+                    table: tableName, items: [{name, price, qty:1}], total: price, status: "open", timestamp: Date.now(), startTime: Date.now(), duration: 0
+                });
+            } else {
+                snap.forEach(d => {
+                    const data = d.data();
+                    let itemsCopy = [...data.items];
+                    let exist = itemsCopy.find(i => i.name === name && i.price === price);
+                    if(exist) exist.qty = (exist.qty || 1) + 1; else itemsCopy.push({name, price, qty:1});
+                    batch.update(doc(db, "orders", d.id), { items: itemsCopy, total: data.total + price });
+                });
+            }
+            await batch.commit();
+            document.getElementById('add-item-name').value = '';
+            document.getElementById('add-item-price').value = '';
+            showDetail(tableName);
+        }
+
+        window.deleteItem = async (tableName, itemName, itemPrice) => {
+            if(!confirm(`حذف مادة ${itemName} بالكامل من الطاولة؟`)) return;
+            const q = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            snap.forEach(d => {
+                const data = d.data();
+                let itemFound = data.items.find(i => i.name === itemName && i.price === itemPrice);
+                let qty = itemFound ? (itemFound.qty || 1) : 1;
+                const newItems = data.items.filter(i => !(i.name === itemName && i.price === itemPrice));
+                const finalTotal = data.total - (itemPrice * qty);
+                if(newItems.length === 0) batch.delete(doc(db, "orders", d.id));
+                else batch.update(doc(db, "orders", d.id), { items: newItems, total: finalTotal });
+            });
+            await batch.commit();
+            const checkQ = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const checkSnap = await getDocs(checkQ);
+            if(checkSnap.empty) closeDetail(); else showDetail(tableName);
+        }
+
+        window.closeDetail = () => {
+            document.getElementById('detail-modal').classList.add('hidden');
+            clearInterval(timerInterval);
+        }
+
+        window.closeTable = async (tableName) => {
+            if(!confirm(`إغلاق وحساب طاولة [ ${tableName} ] بشكل نهائي؟`)) return;
+            const q = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const snap = await getDocs(q);
+            
+            let finalTotal = 0;
+            let allItems = [];
+            const batch = writeBatch(db);
+            
+            snap.forEach(d => {
+                const data = d.data();
+                finalTotal += data.total;
+                data.items.forEach(item => allItems.push(item));
+                batch.delete(doc(db, "orders", d.id));
+            });
+            
+            if(allItems.length > 0) {
+                const historyRef = doc(collection(db, "closed_orders"));
+                batch.set(historyRef, {
+                    table: tableName,
+                    items: allItems,
+                    total: finalTotal,
+                    timestamp: Date.now()
+                });
+            }
+            
+            const statsRef = doc(db, "stats", "daily_revenue");
+            const statsSnap = await getDoc(statsRef);
+            const currentRev = statsSnap.exists() ? statsSnap.data().total : 0;
+            batch.set(statsRef, { total: currentRev + finalTotal });
+            
+            await batch.commit();
+            closeDetail();
+            updateRevenue();
+            alert("تم إغلاق الطاولة وترحيل الفاتورة للسجل الدائمي بنجاح! ✅");
+        };
+
+        window.openTransferModal = (fromTable) => {
+            currentTransferSource = fromTable;
+            const select = document.getElementById('transfer-target');
+            select.innerHTML = '<option value="">اختر الطاولة الهدف...</option>';
+            allTablesList.forEach(t => {
+                if(t !== fromTable) select.innerHTML += `<option value="${t}">${t}</option>`;
+            });
+            document.getElementById('transfer-modal').classList.remove('hidden');
+        }
+
+        window.closeTransfer = () => document.getElementById('transfer-modal').classList.add('hidden');
+
+        document.getElementById('confirm-transfer').onclick = async () => {
+            const toTable = document.getElementById('transfer-target').value;
+            if(!toTable) return alert("يرجى اختيار طاولة ملقى إليها!");
+            const q = query(collection(db, "orders"), where("table", "==", currentTransferSource), where("status", "==", "open"));
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            snap.forEach(d => batch.update(doc(db, "orders", d.id), { table: toTable }));
+            await batch.commit();
+            closeTransfer();
+            closeDetail();
+            alert("تم تحويل الحساب بالكامل بنجاح 🔄");
+        };
+
+        window.deleteTablePermanently = async (tableName) => {
+            if(BASE_TABLES.includes(tableName)) return alert("خطأ: مستحيل حذف الطاولات الثابتة! ❌");
+            if(!confirm(`هل أنت متأكد من حذف الطاولة المتغيرة [ ${tableName} ] نهائياً من النظام؟`)) return;
+            
+            const q = query(collection(db, "tables"), where("name", "==", tableName));
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            snap.forEach(d => batch.delete(doc(db, "tables", d.id)));
+            
+            const ordersQ = query(collection(db, "orders"), where("table", "==", tableName), where("status", "==", "open"));
+            const ordersSnap = await getDocs(ordersQ);
+            ordersSnap.forEach(d => batch.delete(doc(db, "orders", d.id)));
+            
+            await batch.commit();
+            closeDetail();
+        };
+
+        // دالة التصفير الشامل والذكي بناءً على طلبك (طاولات مفتوحة + سجل + فرز مواد + ايرادات)
+        window.closeAllTables = async () => {
+            if(!confirm("تحذير صارم وصارم جداً: هل تريد تصفير الصالة بالكامل؟ هذا الإجراء سيمسح (جميع الطاولات المفتوحة، سجل الفواتير اليومية، جرد وفرز المواد، والإيرادات) ويصفرها تماماً لبدء يوم جديد نهائياً!")) return;
+            
+            const batch = writeBatch(db);
+            
+            // 1. مسح جميع الطلبات المفتوحة بالصالة حالياً
+            const openSnap = await getDocs(collection(db, "orders"));
+            openSnap.forEach(d => batch.delete(doc(db, "orders", d.id)));
+            
+            // 2. تصفير ومسح السجل الدائمي والجرد اليومي بالكامل لبدء صفحة جديدة
+            const closedSnap = await getDocs(collection(db, "closed_orders"));
+            closedSnap.forEach(d => batch.delete(doc(db, "closed_orders", d.id)));
+            
+            // 3. تصفير وإعادة تعيين حقل الإيرادات اليومية إلى 0 د.ع
+            const statsRef = doc(db, "stats", "daily_revenue");
+            batch.set(statsRef, { total: 0 });
+            
+            await batch.commit();
+            updateRevenue();
+            alert("تم تصفير النظام بالكامل! تم مسح السجل والفرز وتصفير العدادات بنجاح لوز اللوز 🧹✨");
+            
+            // إعادة توجيه المستخدم تلقائياً لخريطة الصالة بعد التصفير
+            switchTab('map');
+        };
+
+        window.onload = () => {
+            updateRevenue();
+        };
+    </script>
+</body>
+</html>
